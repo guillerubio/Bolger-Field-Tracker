@@ -10,10 +10,10 @@
   }
 
   function handleClick(region) {
+    console.log('Region clicked:', region);
     selectedRegion = region;
   }
 
-  // Calculate the polygon's centroid using the area-weighted formula.
   function computeCentroid(pointsStr) {
     const points = pointsStr
       .trim()
@@ -42,12 +42,10 @@
     viewBox="0 0 2648 1582"
     preserveAspectRatio="xMidYMid meet"
     xmlns="http://www.w3.org/2000/svg"
-    xmlns:xlink="http://www.w3.org/1999/xlink"
   >
     <!-- Map image -->
     <image href={mapImage} x="0" y="0" width="2648" height="1582" />
 
-    <!-- Render each region as a polygon with an overlaid text label -->
     {#each regions as region}
       <polygon
         points={region.points}
@@ -87,19 +85,17 @@
 <style>
   .map-container {
     position: relative;
-    width: 100%;          /* Use 100% of the parent's width */
-    max-width: 1200px;    /* Limit it to a maximum if needed */
-    margin: 20px auto;    /* Center the container horizontally */
-    text-align: center;   /* Center inline content */
+    width: 100%;
+    max-width: 1200px;
+    margin: 20px auto;
+    text-align: center;
   }
 
   .map-svg {
-    display: inline-block; /* Allow centering via text-align on the parent */
-    width: 100%;           /* SVG fills the container */
-    height: auto;          /* Maintain aspect ratio */
+    display: inline-block;
+    width: 100%;
+    height: auto;
   }
-
-
 
   .region {
     fill: rgba(255, 255, 255, 0.3);
@@ -133,12 +129,14 @@
   }
 
   .expanded-info {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    background: white;
-    border: 1px solid black;
-    padding: 10px;
-    z-index: 10;
-  }
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: white;
+  border: 1px solid black;
+  padding: 10px;
+  z-index: 10;
+  color: black; /* Ensure text is visible on white background */
+}
+
 </style>
