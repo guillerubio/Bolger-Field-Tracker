@@ -1,4 +1,3 @@
-// src/regionsStore.js
 import { writable } from 'svelte/store';
 import { supabase } from './supabaseClient';
 
@@ -26,5 +25,12 @@ export async function addRegion(newRegion) {
 export async function deleteRegion(regionId) {
   const { error } = await supabase.from('regions').delete().match({ id: regionId });
   if (error) console.error('Error deleting region:', error);
+  else await fetchRegions(); // Refresh the store
+}
+
+// Update an existing region in Supabase
+export async function updateRegion(updatedRegion) {
+  const { error } = await supabase.from('regions').update(updatedRegion).match({ id: updatedRegion.id });
+  if (error) console.error('Error updating region:', error);
   else await fetchRegions(); // Refresh the store
 }

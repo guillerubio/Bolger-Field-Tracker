@@ -1,6 +1,11 @@
 <!-- src/Map.svelte -->
 <script>
-  import { regionsStore, addRegion, deleteRegion } from "./regionsStore.js";
+  import {
+    regionsStore,
+    addRegion,
+    deleteRegion,
+    updateRegion,
+  } from "./regionsStore.js";
   import mapImage from "./assets/map-image.png";
   import RegionInfo from "./RegionInfo.svelte";
   import { onDestroy } from "svelte";
@@ -10,25 +15,24 @@
 
   // Creation mode state
   let createMode = false;
-  let newPoints = []; // Array of "x,y" strings
+  let newPoints = [];
   let newName = "";
   let newInfo = "";
+  // Note: extra fields will be added during editing, not during creation
 
   // Subscribe to the regions store
   let regions = [];
   const unsubscribe = regionsStore.subscribe((val) => {
     regions = val;
   });
-  onDestroy(() => {
-    unsubscribe();
-  });
+  onDestroy(() => unsubscribe());
 
   function handleHover(region) {
     hoverRegion = region;
   }
 
   function handleClickExisting(region, e) {
-    if (createMode) return; // In create mode, let clicks pass to the map
+    if (createMode) return;
     e.stopPropagation();
     selectedRegion = region;
   }
@@ -43,9 +47,7 @@
 
   function handleMapClick(e) {
     if (!createMode) return;
-
     const svgRect = e.currentTarget.getBoundingClientRect();
-    // Original map dimensions: 2648 x 1582
     const scaleX = 2648 / svgRect.width;
     const scaleY = 1582 / svgRect.height;
     const offsetX = e.clientX - svgRect.left;
@@ -60,11 +62,13 @@
       alert("Please provide a region name and at least 3 points.");
       return;
     }
+    // In creation mode we only gather basic data:
     const newRegion = {
       name: newName.trim(),
       points: newPoints.join(" "),
       info: newInfo.trim() || "Short info on hover",
       details: "Expanded details on click",
+      // Extra fields (status, comments, etc.) can be added later via editing
     };
     await addRegion(newRegion);
     createMode = false;
@@ -85,11 +89,16 @@
     selectedRegion = null;
   }
 
+  // This function is passed to RegionInfo to update an edited region
+  async function handleUpdate(updatedRegion) {
+    await updateRegion(updatedRegion);
+    selectedRegion = updatedRegion;
+  }
+
   function closeRegionInfo() {
     selectedRegion = null;
   }
 
-  // Compute centroid for label placement
   function computeCentroid(pointsStr) {
     const points = pointsStr
       .trim()
@@ -178,6 +187,7 @@
       region={selectedRegion}
       onClose={closeRegionInfo}
       onDelete={handleDelete}
+      onUpdate={handleUpdate}
     />
   {/if}
 </div>
