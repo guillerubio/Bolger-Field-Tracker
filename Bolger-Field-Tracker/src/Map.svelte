@@ -44,7 +44,8 @@
     preserveAspectRatio="xMidYMid meet"
   >
     <!-- Map image -->
-    <image href="/map-image.png" x="0" y="0" width="2648" height="1582" />
+    <image href="/Bolger-Field-Tracker/map-image.png" x="0" y="0" width="2648" height="1582" />
+
 
     <!-- Render each region as a polygon with an overlaid text label -->
     {#each regions as region}
