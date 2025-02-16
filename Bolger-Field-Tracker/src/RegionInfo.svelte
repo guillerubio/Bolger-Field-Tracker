@@ -1,22 +1,15 @@
+<!-- src/RegionInfo.svelte -->
 <script>
-  // The region we display
-  export let region = null;
-
-  // Called when user closes the panel
+  export let region;
   export let onClose = () => {};
-
-  // Called when user wants to delete the region
   export let onDelete = () => {};
 </script>
 
 <div class="expanded-info">
   <h3>{region.name}</h3>
   <p>{region.details}</p>
-
   <button on:click={onClose}>Close</button>
-  <button on:click={() => onDelete(region)} style="margin-left:10px;"
-    >Delete</button
-  >
+  <button on:click={() => onDelete(region)} class="delete-btn">Delete</button>
 </div>
 
 <style>
@@ -29,5 +22,10 @@
     padding: 10px;
     z-index: 10;
     color: black;
+  }
+  .delete-btn {
+    background: red;
+    color: white;
+    margin-left: 10px;
   }
 </style>

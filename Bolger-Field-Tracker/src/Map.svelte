@@ -1,3 +1,4 @@
+<!-- src/Map.svelte -->
 <script>
   import { regionsStore, addRegion, deleteRegion } from "./regionsStore.js";
   import mapImage from "./assets/map-image.png";
@@ -7,9 +8,9 @@
   let selectedRegion = null;
   let hoverRegion = null;
 
-  // Creation mode states
+  // Creation mode state
   let createMode = false;
-  let newPoints = [];
+  let newPoints = []; // Array of "x,y" strings
   let newName = "";
   let newInfo = "";
 
@@ -18,25 +19,20 @@
   const unsubscribe = regionsStore.subscribe((val) => {
     regions = val;
   });
-
-  // Unsubscribe on destroy
   onDestroy(() => {
     unsubscribe();
   });
 
-  // Hover effect
   function handleHover(region) {
     hoverRegion = region;
   }
 
-  // If not creating, select region. If creating, do nothing
   function handleClickExisting(region, e) {
-    if (createMode) return;
+    if (createMode) return; // In create mode, let clicks pass to the map
     e.stopPropagation();
     selectedRegion = region;
   }
 
-  // Enter creation mode
   function startCreateMode() {
     createMode = true;
     newPoints = [];
@@ -45,47 +41,38 @@
     selectedRegion = null;
   }
 
-  // Capture clicks on the map to add polygon points
   function handleMapClick(e) {
     if (!createMode) return;
 
     const svgRect = e.currentTarget.getBoundingClientRect();
+    // Original map dimensions: 2648 x 1582
     const scaleX = 2648 / svgRect.width;
     const scaleY = 1582 / svgRect.height;
-
     const offsetX = e.clientX - svgRect.left;
     const offsetY = e.clientY - svgRect.top;
-
     const mapX = Math.round(offsetX * scaleX);
     const mapY = Math.round(offsetY * scaleY);
-
-    // Add the new coordinate
     newPoints = [...newPoints, `${mapX},${mapY}`];
   }
 
-  // Finalize creation, add to store
-  function saveNewRegion() {
+  async function saveNewRegion() {
     if (!newName.trim() || newPoints.length < 3) {
       alert("Please provide a region name and at least 3 points.");
       return;
     }
     const newRegion = {
-      id: "new_" + Date.now(),
       name: newName.trim(),
       points: newPoints.join(" "),
       info: newInfo.trim() || "Short info on hover",
       details: "Expanded details on click",
     };
-    addRegion(newRegion);
-
-    // reset
+    await addRegion(newRegion);
     createMode = false;
     newPoints = [];
     newName = "";
     newInfo = "";
   }
 
-  // Cancel creation
   function cancelCreateMode() {
     createMode = false;
     newPoints = [];
@@ -93,19 +80,21 @@
     newInfo = "";
   }
 
-  // Delete a region from the store
-  function handleDelete(region) {
-    deleteRegion(region);
+  async function handleDelete(region) {
+    await deleteRegion(region.id);
     selectedRegion = null;
   }
 
-  // For labeling
+  function closeRegionInfo() {
+    selectedRegion = null;
+  }
+
+  // Compute centroid for label placement
   function computeCentroid(pointsStr) {
     const points = pointsStr
       .trim()
       .split(" ")
       .map((pair) => pair.split(",").map(Number));
-
     let area = 0,
       cx = 0,
       cy = 0;
@@ -122,13 +111,9 @@
     cy /= 6 * area;
     return { x: cx, y: cy };
   }
-
-  function closeRegionInfo() {
-    selectedRegion = null;
-  }
 </script>
 
-<!-- Top panel for create mode -->
+<!-- Top panel for region creation controls -->
 <div class="top-panel">
   {#if !createMode}
     <button on:click={startCreateMode}>Create Region</button>
@@ -153,12 +138,13 @@
   {/if}
 </div>
 
-<!-- The map -->
+<!-- Map container -->
 <div class="map-container {createMode ? 'create-mode' : ''}">
   <svg
     class="map-svg"
     viewBox="0 0 2648 1582"
     preserveAspectRatio="xMidYMid meet"
+    xmlns="http://www.w3.org/2000/svg"
     on:click={handleMapClick}
   >
     <image href={mapImage} x="0" y="0" width="2648" height="1582" />
@@ -178,8 +164,6 @@
         {region.name}
       </text>
     {/each}
-
-    <!-- New polygon preview -->
     {#if createMode && newPoints.length >= 2}
       <polygon points={newPoints.join(" ")} class="new-region-preview" />
     {/if}
@@ -225,12 +209,11 @@
     padding: 0.5rem 1rem;
     cursor: pointer;
   }
-
   .map-container {
     position: relative;
     width: 100%;
     max-width: 1200px;
-    margin: 80px auto 20px auto;
+    margin: 80px auto 20px;
     text-align: center;
   }
   .map-container.create-mode {
