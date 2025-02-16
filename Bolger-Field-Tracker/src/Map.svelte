@@ -1,58 +1,174 @@
 <script>
-  import { regions } from "./regions.js";
-  import mapImage from './assets/map-image.png';
+  import { regionsStore, addRegion, deleteRegion } from "./regionsStore.js";
+  import mapImage from "./assets/map-image.png";
+  import RegionInfo from "./RegionInfo.svelte";
+  import { onDestroy } from "svelte";
 
   let selectedRegion = null;
   let hoverRegion = null;
 
+  // Creation mode states
+  let createMode = false;
+  let newPoints = [];
+  let newName = "";
+  let newInfo = "";
+
+  // Subscribe to the regions store
+  let regions = [];
+  const unsubscribe = regionsStore.subscribe((val) => {
+    regions = val;
+  });
+
+  // Unsubscribe on destroy
+  onDestroy(() => {
+    unsubscribe();
+  });
+
+  // Hover effect
   function handleHover(region) {
     hoverRegion = region;
   }
 
-  function handleClick(region) {
-    console.log('Region clicked:', region);
+  // If not creating, select region. If creating, do nothing
+  function handleClickExisting(region, e) {
+    if (createMode) return;
+    e.stopPropagation();
     selectedRegion = region;
   }
 
+  // Enter creation mode
+  function startCreateMode() {
+    createMode = true;
+    newPoints = [];
+    newName = "";
+    newInfo = "";
+    selectedRegion = null;
+  }
+
+  // Capture clicks on the map to add polygon points
+  function handleMapClick(e) {
+    if (!createMode) return;
+
+    const svgRect = e.currentTarget.getBoundingClientRect();
+    const scaleX = 2648 / svgRect.width;
+    const scaleY = 1582 / svgRect.height;
+
+    const offsetX = e.clientX - svgRect.left;
+    const offsetY = e.clientY - svgRect.top;
+
+    const mapX = Math.round(offsetX * scaleX);
+    const mapY = Math.round(offsetY * scaleY);
+
+    // Add the new coordinate
+    newPoints = [...newPoints, `${mapX},${mapY}`];
+  }
+
+  // Finalize creation, add to store
+  function saveNewRegion() {
+    if (!newName.trim() || newPoints.length < 3) {
+      alert("Please provide a region name and at least 3 points.");
+      return;
+    }
+    const newRegion = {
+      id: "new_" + Date.now(),
+      name: newName.trim(),
+      points: newPoints.join(" "),
+      info: newInfo.trim() || "Short info on hover",
+      details: "Expanded details on click",
+    };
+    addRegion(newRegion);
+
+    // reset
+    createMode = false;
+    newPoints = [];
+    newName = "";
+    newInfo = "";
+  }
+
+  // Cancel creation
+  function cancelCreateMode() {
+    createMode = false;
+    newPoints = [];
+    newName = "";
+    newInfo = "";
+  }
+
+  // Delete a region from the store
+  function handleDelete(region) {
+    deleteRegion(region);
+    selectedRegion = null;
+  }
+
+  // For labeling
   function computeCentroid(pointsStr) {
     const points = pointsStr
       .trim()
       .split(" ")
       .map((pair) => pair.split(",").map(Number));
-    let area = 0, cx = 0, cy = 0;
-    const n = points.length;
-    for (let i = 0; i < n; i++) {
+
+    let area = 0,
+      cx = 0,
+      cy = 0;
+    for (let i = 0; i < points.length; i++) {
       const [x1, y1] = points[i];
-      const [x2, y2] = points[(i + 1) % n];
+      const [x2, y2] = points[(i + 1) % points.length];
       const cross = x1 * y2 - x2 * y1;
       area += cross;
       cx += (x1 + x2) * cross;
       cy += (y1 + y2) * cross;
     }
-    area = area / 2;
-    cx = cx / (6 * area);
-    cy = cy / (6 * area);
+    area /= 2;
+    cx /= 6 * area;
+    cy /= 6 * area;
     return { x: cx, y: cy };
+  }
+
+  function closeRegionInfo() {
+    selectedRegion = null;
   }
 </script>
 
-<div class="map-container">
+<!-- Top panel for create mode -->
+<div class="top-panel">
+  {#if !createMode}
+    <button on:click={startCreateMode}>Create Region</button>
+  {/if}
+
+  {#if createMode}
+    <div class="create-region-panel">
+      <h3>Creating a new region</h3>
+      <label>
+        Name:
+        <input bind:value={newName} placeholder="Region name" />
+      </label>
+      <label>
+        Info:
+        <input bind:value={newInfo} placeholder="Short info" />
+      </label>
+      <button on:click={saveNewRegion}>Save Region</button>
+      <button on:click={cancelCreateMode} style="margin-left:10px;"
+        >Cancel</button
+      >
+    </div>
+  {/if}
+</div>
+
+<!-- The map -->
+<div class="map-container {createMode ? 'create-mode' : ''}">
   <svg
     class="map-svg"
     viewBox="0 0 2648 1582"
     preserveAspectRatio="xMidYMid meet"
-    xmlns="http://www.w3.org/2000/svg"
+    on:click={handleMapClick}
   >
-    <!-- Map image -->
     <image href={mapImage} x="0" y="0" width="2648" height="1582" />
-
     {#each regions as region}
       <polygon
         points={region.points}
-        class="region"
+        class="region {createMode ? 'no-pointer' : ''}"
         on:mouseover={() => handleHover(region)}
         on:mouseout={() => (hoverRegion = null)}
-        on:click={() => handleClick(region)}
+        on:click={(e) => handleClickExisting(region, e)}
       />
       <text
         x={computeCentroid(region.points).x}
@@ -62,63 +178,96 @@
         {region.name}
       </text>
     {/each}
+
+    <!-- New polygon preview -->
+    {#if createMode && newPoints.length >= 2}
+      <polygon points={newPoints.join(" ")} class="new-region-preview" />
+    {/if}
   </svg>
 
   {#if hoverRegion}
-    <div
-      class="hover-info"
-      style="top: {hoverRegion.tooltipY}px; left: {hoverRegion.tooltipX}px"
-    >
-      {hoverRegion.info}
-    </div>
+    <div class="hover-info">{hoverRegion.info}</div>
   {/if}
 
   {#if selectedRegion}
-    <div class="expanded-info">
-      <h3>{selectedRegion.name}</h3>
-      <p>{selectedRegion.details}</p>
-      <button on:click={() => (selectedRegion = null)}>Close</button>
-    </div>
+    <RegionInfo
+      region={selectedRegion}
+      onClose={closeRegionInfo}
+      onDelete={handleDelete}
+    />
   {/if}
 </div>
 
 <style>
+  .top-panel {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+  .create-region-panel {
+    background: white;
+    color: black;
+    padding: 1rem;
+    border: 1px solid #999;
+    border-radius: 4px;
+    min-width: 220px;
+  }
+  .create-region-panel label {
+    display: block;
+    margin: 0.5rem 0;
+  }
+  button {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+  }
+
   .map-container {
     position: relative;
     width: 100%;
     max-width: 1200px;
-    margin: 20px auto;
+    margin: 80px auto 20px auto;
     text-align: center;
   }
-
+  .map-container.create-mode {
+    cursor: crosshair;
+  }
   .map-svg {
     display: inline-block;
     width: 100%;
     height: auto;
+    background: #ddd;
   }
-
   .region {
     fill: rgba(255, 255, 255, 0.3);
     stroke: red;
     stroke-width: 2;
     cursor: pointer;
   }
-
   .region:hover {
     fill: rgba(255, 0, 0, 0.6);
   }
-
+  .region.no-pointer {
+    pointer-events: none;
+  }
+  .new-region-preview {
+    fill: rgba(0, 255, 0, 0.3);
+    stroke: green;
+    stroke-width: 2;
+    pointer-events: none;
+  }
   .region-label {
     pointer-events: none;
-    fill: #ffffff;
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 24px;
+    fill: #fff;
     text-anchor: middle;
     dominant-baseline: middle;
     stroke: black;
     stroke-width: 1;
   }
-
   .hover-info {
     position: absolute;
     background: rgba(0, 0, 0, 0.7);
@@ -127,16 +276,4 @@
     font-size: 12px;
     pointer-events: none;
   }
-
-  .expanded-info {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  background: white;
-  border: 1px solid black;
-  padding: 10px;
-  z-index: 10;
-  color: black; /* Ensure text is visible on white background */
-}
-
 </style>
