@@ -8,23 +8,31 @@
   <Map />
 </main>
 
-<style>
-  main {
-    text-align: center;
-    padding: 1em;
-    max-width: 240px;
-    margin: 0 auto;
-  }
 
+
+<style global>
+  /* Fluid main container that centers content */
+  main {
+    width: 100%;
+    max-width: 1000px; /* Optional: set a generous max-width */
+    margin: 0 auto;
+    padding: 1em;
+    box-sizing: border-box;
+    text-align: center;
+  }
+  
   h1 {
     color: #ff3e00;
-    font-size: 2em;
+    font-size: 2em;        /* Base size for small screens */
     font-weight: 100;
+    margin-bottom: 1em;
   }
-
+  
   @media (min-width: 640px) {
-    main {
-      max-width: none;
+    h1 {
+      font-size: 2.5em;
     }
   }
 </style>
+
+

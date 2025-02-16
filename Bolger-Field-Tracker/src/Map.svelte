@@ -19,9 +19,7 @@
       .trim()
       .split(" ")
       .map((pair) => pair.split(",").map(Number));
-    let area = 0,
-      cx = 0,
-      cy = 0;
+    let area = 0, cx = 0, cy = 0;
     const n = points.length;
     for (let i = 0; i < n; i++) {
       const [x1, y1] = points[i];
@@ -40,16 +38,14 @@
 
 <div class="map-container">
   <svg
-  class="map-svg"
-  viewBox="0 0 2648 1582"
-  preserveAspectRatio="xMidYMid meet"
-  xmlns="http://www.w3.org/2000/svg"
-  xmlns:xlink="http://www.w3.org/1999/xlink"
->
+    class="map-svg"
+    viewBox="0 0 2648 1582"
+    preserveAspectRatio="xMidYMid meet"
+    xmlns="http://www.w3.org/2000/svg"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+  >
     <!-- Map image -->
     <image href={mapImage} x="0" y="0" width="2648" height="1582" />
-
-
 
     <!-- Render each region as a polygon with an overlaid text label -->
     {#each regions as region}
@@ -91,16 +87,19 @@
 <style>
   .map-container {
     position: relative;
-    width: 90vw;
-    max-width: 1200px;
-    margin: 20px auto;
+    width: 100%;          /* Use 100% of the parent's width */
+    max-width: 1200px;    /* Limit it to a maximum if needed */
+    margin: 20px auto;    /* Center the container horizontally */
+    text-align: center;   /* Center inline content */
   }
 
   .map-svg {
-    width: 100%;
-    height: auto;
-    display: block;
+    display: inline-block; /* Allow centering via text-align on the parent */
+    width: 100%;           /* SVG fills the container */
+    height: auto;          /* Maintain aspect ratio */
   }
+
+
 
   .region {
     fill: rgba(255, 255, 255, 0.3);
@@ -120,7 +119,6 @@
     font-size: 24px;
     text-anchor: middle;
     dominant-baseline: middle;
-    /* Add a subtle black stroke for contrast */
     stroke: black;
     stroke-width: 1;
   }
