@@ -4,5 +4,5 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
   plugins: [svelte({ preprocess: vitePreprocess() })],
-  base: '/Bolger-Field-Tracker/' // Make sure this exactly matches your repo name
+  base: '/Bolger-Field-Tracker/' // Use a relative path // Make sure this exactly matches your repo name
 });

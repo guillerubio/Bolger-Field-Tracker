@@ -1,5 +1,6 @@
 <script>
   import { regions } from "./regions.js";
+  import mapImage from './assets/map-image.png';
 
   let selectedRegion = null;
   let hoverRegion = null;
@@ -39,12 +40,15 @@
 
 <div class="map-container">
   <svg
-    class="map-svg"
-    viewBox="0 0 2648 1582"
-    preserveAspectRatio="xMidYMid meet"
-  >
+  class="map-svg"
+  viewBox="0 0 2648 1582"
+  preserveAspectRatio="xMidYMid meet"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+>
     <!-- Map image -->
-    <image href="/Bolger-Field-Tracker/map-image.png" x="0" y="0" width="2648" height="1582" />
+    <image href={mapImage} x="0" y="0" width="2648" height="1582" />
+
 
 
     <!-- Render each region as a polygon with an overlaid text label -->
