@@ -1,4 +1,3 @@
-<!-- src/Map.svelte -->
 <script>
   import {
     regionsStore,
@@ -10,31 +9,31 @@
   import RegionInfo from "./RegionInfo.svelte";
   import { onDestroy } from "svelte";
 
-  let selectedRegion = null;
-  let hoverRegion = null;
+  let selectedField = null;
+  let hoverField = null;
 
-  // Creation mode state
+  // Creation mode state for a new field
   let createMode = false;
   let newPoints = [];
   let newName = "";
   let newInfo = "";
-  // Note: extra fields will be added during editing, not during creation
+  // Extra data (status, etc.) will be added in editing
 
   // Subscribe to the regions store
-  let regions = [];
+  let fields = [];
   const unsubscribe = regionsStore.subscribe((val) => {
-    regions = val;
+    fields = val;
   });
   onDestroy(() => unsubscribe());
 
-  function handleHover(region) {
-    hoverRegion = region;
+  function handleHover(field) {
+    hoverField = field;
   }
 
-  function handleClickExisting(region, e) {
+  function handleClickExisting(field, e) {
     if (createMode) return;
     e.stopPropagation();
-    selectedRegion = region;
+    selectedField = field;
   }
 
   function startCreateMode() {
@@ -42,7 +41,7 @@
     newPoints = [];
     newName = "";
     newInfo = "";
-    selectedRegion = null;
+    selectedField = null;
   }
 
   function handleMapClick(e) {
@@ -57,20 +56,23 @@
     newPoints = [...newPoints, `${mapX},${mapY}`];
   }
 
-  async function saveNewRegion() {
+  function undoLastPoint() {
+    newPoints = newPoints.slice(0, -1);
+  }
+
+  async function saveNewField() {
     if (!newName.trim() || newPoints.length < 3) {
-      alert("Please provide a region name and at least 3 points.");
+      alert("Please provide a field name and at least 3 points.");
       return;
     }
-    // In creation mode we only gather basic data:
-    const newRegion = {
+    // In creation mode we only collect basic info; extra data will be added in editing
+    const newField = {
       name: newName.trim(),
       points: newPoints.join(" "),
       info: newInfo.trim() || "Short info on hover",
       details: "Expanded details on click",
-      // Extra fields (status, comments, etc.) can be added later via editing
     };
-    await addRegion(newRegion);
+    await addRegion(newField);
     createMode = false;
     newPoints = [];
     newName = "";
@@ -84,19 +86,18 @@
     newInfo = "";
   }
 
-  async function handleDelete(region) {
-    await deleteRegion(region.id);
-    selectedRegion = null;
+  async function handleDelete(field) {
+    await deleteRegion(field.id);
+    selectedField = null;
   }
 
-  // This function is passed to RegionInfo to update an edited region
-  async function handleUpdate(updatedRegion) {
-    await updateRegion(updatedRegion);
-    selectedRegion = updatedRegion;
+  async function handleUpdate(updatedField) {
+    await updateRegion(updatedField);
+    selectedField = updatedField;
   }
 
-  function closeRegionInfo() {
-    selectedRegion = null;
+  function closeFieldInfo() {
+    selectedField = null;
   }
 
   function computeCentroid(pointsStr) {
@@ -122,27 +123,27 @@
   }
 </script>
 
-<!-- Top panel for region creation controls -->
+<!-- Top panel for controls -->
 <div class="top-panel">
   {#if !createMode}
-    <button on:click={startCreateMode}>Create Region</button>
+    <button on:click={startCreateMode}>Create Field</button>
   {/if}
-
   {#if createMode}
-    <div class="create-region-panel">
-      <h3>Creating a new region</h3>
+    <div class="create-field-panel">
+      <h3>Creating a new field</h3>
       <label>
         Name:
-        <input bind:value={newName} placeholder="Region name" />
+        <input bind:value={newName} placeholder="Field name" />
       </label>
       <label>
         Info:
         <input bind:value={newInfo} placeholder="Short info" />
       </label>
-      <button on:click={saveNewRegion}>Save Region</button>
-      <button on:click={cancelCreateMode} style="margin-left:10px;"
-        >Cancel</button
-      >
+      <div class="button-row">
+        <button on:click={saveNewField}>Save Field</button>
+        <button on:click={cancelCreateMode}>Cancel</button>
+        <button on:click={undoLastPoint}>Undo Last Point</button>
+      </div>
     </div>
   {/if}
 </div>
@@ -157,35 +158,33 @@
     on:click={handleMapClick}
   >
     <image href={mapImage} x="0" y="0" width="2648" height="1582" />
-    {#each regions as region}
+    {#each fields as field}
       <polygon
-        points={region.points}
+        points={field.points}
         class="region {createMode ? 'no-pointer' : ''}"
-        on:mouseover={() => handleHover(region)}
-        on:mouseout={() => (hoverRegion = null)}
-        on:click={(e) => handleClickExisting(region, e)}
+        on:mouseover={() => handleHover(field)}
+        on:mouseout={() => (hoverField = null)}
+        on:click={(e) => handleClickExisting(field, e)}
       />
       <text
-        x={computeCentroid(region.points).x}
-        y={computeCentroid(region.points).y}
+        x={computeCentroid(field.points).x}
+        y={computeCentroid(field.points).y}
         class="region-label"
       >
-        {region.name}
+        {field.name}
       </text>
     {/each}
     {#if createMode && newPoints.length >= 2}
       <polygon points={newPoints.join(" ")} class="new-region-preview" />
     {/if}
   </svg>
-
-  {#if hoverRegion}
-    <div class="hover-info">{hoverRegion.info}</div>
+  {#if hoverField}
+    <div class="hover-info">{hoverField.info}</div>
   {/if}
-
-  {#if selectedRegion}
+  {#if selectedField}
     <RegionInfo
-      region={selectedRegion}
-      onClose={closeRegionInfo}
+      region={selectedField}
+      onClose={closeFieldInfo}
       onDelete={handleDelete}
       onUpdate={handleUpdate}
     />
@@ -203,7 +202,7 @@
     gap: 1rem;
     align-items: center;
   }
-  .create-region-panel {
+  .create-field-panel {
     background: white;
     color: black;
     padding: 1rem;
@@ -211,9 +210,14 @@
     border-radius: 4px;
     min-width: 220px;
   }
-  .create-region-panel label {
+  .create-field-panel label {
     display: block;
     margin: 0.5rem 0;
+  }
+  .button-row {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
   }
   button {
     padding: 0.5rem 1rem;
