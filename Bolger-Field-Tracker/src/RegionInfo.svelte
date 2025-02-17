@@ -1,32 +1,30 @@
-<!-- src/RegionInfo.svelte -->
 <script>
   export let region;
   export let onClose = () => {};
   export let onDelete = () => {};
   export let onUpdate = () => {};
+  export let onShapeEdit = () => {};
 
   let editMode = false;
-  // Create a local copy for editing
-  let editedRegion = { ...region };
+  let editedField = { ...region };
 
-  // When the component receives a new region, update the local copy
   $: if (region) {
-    editedRegion = { ...region };
+    editedField = { ...region };
   }
 
   function startEditing() {
     editMode = true;
+    onShapeEdit(); // trigger shape editing in Map.svelte
   }
 
   async function saveChanges() {
-    // Call onUpdate with the edited region
-    await onUpdate(editedRegion);
+    await onUpdate(editedField);
     editMode = false;
   }
 
   function cancelEdit() {
     editMode = false;
-    editedRegion = { ...region };
+    editedField = { ...region };
   }
 </script>
 
@@ -46,18 +44,18 @@
   </div>
 {:else}
   <div class="expanded-info">
-    <h3>Edit Region</h3>
+    <h3>Edit Field</h3>
     <label>
       Name:
-      <input bind:value={editedRegion.name} />
+      <input bind:value={editedField.name} />
     </label>
     <label>
       Details:
-      <textarea bind:value={editedRegion.details}></textarea>
+      <textarea bind:value={editedField.details}></textarea>
     </label>
     <label>
       Status:
-      <select bind:value={editedRegion.status}>
+      <select bind:value={editedField.status}>
         <option value="1">1 - Poor</option>
         <option value="2">2</option>
         <option value="3">3</option>
@@ -67,11 +65,11 @@
     </label>
     <label>
       Comments:
-      <textarea bind:value={editedRegion.comments}></textarea>
+      <textarea bind:value={editedField.comments}></textarea>
     </label>
     <label>
       Use Date:
-      <input type="date" bind:value={editedRegion.use_date} />
+      <input type="date" bind:value={editedField.use_date} />
     </label>
     <label>
       Separations:
@@ -79,19 +77,19 @@
         type="number"
         min="1"
         max="20"
-        bind:value={editedRegion.separations}
+        bind:value={editedField.separations}
       />
     </label>
     <label>
       Management:
-      <select bind:value={editedRegion.management_type}>
+      <select bind:value={editedField.management_type}>
         <option value="Exclusion">Exclusion</option>
         <option value="Rotation">Rotation</option>
       </select>
     </label>
     <label>
       Hectares:
-      <input type="number" step="0.01" bind:value={editedRegion.hectares} />
+      <input type="number" step="0.01" bind:value={editedField.hectares} />
     </label>
     <button on:click={saveChanges}>Save</button>
     <button on:click={cancelEdit} style="margin-left:10px;">Cancel</button>
@@ -100,13 +98,10 @@
 
 <style>
   .expanded-info {
-    position: absolute;
-    top: 20px;
-    left: 20px;
+    width: 100%;
     background: white;
     border: 1px solid black;
     padding: 10px;
-    z-index: 10;
     color: black;
   }
   .delete-btn {

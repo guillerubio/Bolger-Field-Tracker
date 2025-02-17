@@ -7,24 +7,33 @@
   } from "./regionsStore.js";
   import mapImage from "./assets/map-image.png";
   import RegionInfo from "./RegionInfo.svelte";
+  import DraggablePolygon from "./DraggablePolygon.svelte";
   import { onDestroy } from "svelte";
 
   let selectedField = null;
   let hoverField = null;
 
-  // Creation mode state for a new field
+  // Creation mode state for new fields
   let createMode = false;
-  let newPoints = [];
+  let newPoints = ""; // space-separated string of "x,y" pairs
   let newName = "";
   let newInfo = "";
-  // Extra data (status, etc.) will be added in editing
+
+  // Shape editing state for the selected field
+  let shapeEditMode = false;
+  let editedPoints = "";
+
+  // Bind the map container for panel positioning.
+  let mapContainer;
 
   // Subscribe to the regions store
   let fields = [];
   const unsubscribe = regionsStore.subscribe((val) => {
     fields = val;
   });
-  onDestroy(() => unsubscribe());
+  onDestroy(() => {
+    unsubscribe();
+  });
 
   function handleHover(field) {
     hoverField = field;
@@ -34,18 +43,25 @@
     if (createMode) return;
     e.stopPropagation();
     selectedField = field;
+    shapeEditMode = false;
   }
 
   function startCreateMode() {
     createMode = true;
-    newPoints = [];
+    newPoints = "";
     newName = "";
     newInfo = "";
     selectedField = null;
+    shapeEditMode = false;
   }
 
   function handleMapClick(e) {
+    // Only add new points if in creation mode and only when clicking directly on the SVG or IMAGE.
     if (!createMode) return;
+    const tag = e.target.tagName.toLowerCase();
+    if (tag !== "svg" && tag !== "image") {
+      return;
+    }
     const svgRect = e.currentTarget.getBoundingClientRect();
     const scaleX = 2648 / svgRect.width;
     const scaleY = 1582 / svgRect.height;
@@ -53,35 +69,39 @@
     const offsetY = e.clientY - svgRect.top;
     const mapX = Math.round(offsetX * scaleX);
     const mapY = Math.round(offsetY * scaleY);
-    newPoints = [...newPoints, `${mapX},${mapY}`];
+    newPoints = newPoints
+      ? newPoints + " " + `${mapX},${mapY}`
+      : `${mapX},${mapY}`;
   }
 
   function undoLastPoint() {
-    newPoints = newPoints.slice(0, -1);
+    if (!newPoints) return;
+    const parts = newPoints.trim().split(" ");
+    parts.pop();
+    newPoints = parts.join(" ");
   }
 
   async function saveNewField() {
-    if (!newName.trim() || newPoints.length < 3) {
+    if (!newName.trim() || newPoints.trim().split(" ").length < 3) {
       alert("Please provide a field name and at least 3 points.");
       return;
     }
-    // In creation mode we only collect basic info; extra data will be added in editing
     const newField = {
       name: newName.trim(),
-      points: newPoints.join(" "),
+      points: newPoints,
       info: newInfo.trim() || "Short info on hover",
       details: "Expanded details on click",
     };
     await addRegion(newField);
     createMode = false;
-    newPoints = [];
+    newPoints = "";
     newName = "";
     newInfo = "";
   }
 
   function cancelCreateMode() {
     createMode = false;
-    newPoints = [];
+    newPoints = "";
     newName = "";
     newInfo = "";
   }
@@ -92,12 +112,25 @@
   }
 
   async function handleUpdate(updatedField) {
+    if (shapeEditMode) {
+      updatedField.points = editedPoints;
+      shapeEditMode = false;
+    }
     await updateRegion(updatedField);
     selectedField = updatedField;
   }
 
   function closeFieldInfo() {
     selectedField = null;
+    shapeEditMode = false;
+  }
+
+  // Trigger shape editing from RegionInfo's Edit button
+  function startShapeEdit() {
+    if (selectedField) {
+      shapeEditMode = true;
+      editedPoints = selectedField.points;
+    }
   }
 
   function computeCentroid(pointsStr) {
@@ -120,6 +153,21 @@
     cx /= 6 * area;
     cy /= 6 * area;
     return { x: cx, y: cy };
+  }
+
+  // Compute fixed panel style based on the selected field's container position.
+  let panelStyle = "";
+  $: if (selectedField && mapContainer) {
+    const rect = mapContainer.getBoundingClientRect();
+    const centroid = computeCentroid(selectedField.points);
+    const scale = rect.width / 2648;
+    const fieldX = centroid.x * scale;
+    panelStyle =
+      fieldX < rect.width / 2
+        ? "position: fixed; top: 20px; right: 20px;"
+        : "position: fixed; top: 20px; left: 20px;";
+  } else {
+    panelStyle = "";
   }
 </script>
 
@@ -148,8 +196,24 @@
   {/if}
 </div>
 
+<!-- Fixed RegionInfo panel outside the map -->
+{#if selectedField && !createMode}
+  <div class="region-info-fixed" style={panelStyle}>
+    <RegionInfo
+      region={selectedField}
+      onClose={closeFieldInfo}
+      onDelete={handleDelete}
+      onUpdate={handleUpdate}
+      onShapeEdit={startShapeEdit}
+    />
+  </div>
+{/if}
+
 <!-- Map container -->
-<div class="map-container {createMode ? 'create-mode' : ''}">
+<div
+  class="map-container {createMode ? 'create-mode' : ''}"
+  bind:this={mapContainer}
+>
   <svg
     class="map-svg"
     viewBox="0 0 2648 1582"
@@ -157,37 +221,46 @@
     xmlns="http://www.w3.org/2000/svg"
     on:click={handleMapClick}
   >
-    <image href={mapImage} x="0" y="0" width="2648" height="1582" />
+    <image
+      href={mapImage}
+      x="0"
+      y="0"
+      width="2648"
+      height="1582"
+      draggable="false"
+    />
     {#each fields as field}
-      <polygon
-        points={field.points}
-        class="region {createMode ? 'no-pointer' : ''}"
-        on:mouseover={() => handleHover(field)}
-        on:mouseout={() => (hoverField = null)}
-        on:click={(e) => handleClickExisting(field, e)}
-      />
-      <text
-        x={computeCentroid(field.points).x}
-        y={computeCentroid(field.points).y}
-        class="region-label"
-      >
-        {field.name}
-      </text>
+      {#if selectedField && shapeEditMode && field.id === selectedField.id}
+        <DraggablePolygon
+          points={editedPoints}
+          onChange={(newPts) => (editedPoints = newPts)}
+        />
+      {:else}
+        <polygon
+          points={field.points}
+          class="region {createMode ? 'no-pointer' : ''}"
+          on:mouseover={() => handleHover(field)}
+          on:mouseout={() => (hoverField = null)}
+          on:click={(e) => handleClickExisting(field, e)}
+        />
+        <text
+          x={computeCentroid(field.points).x}
+          y={computeCentroid(field.points).y}
+          class="region-label"
+        >
+          {field.name}
+        </text>
+      {/if}
     {/each}
-    {#if createMode && newPoints.length >= 2}
-      <polygon points={newPoints.join(" ")} class="new-region-preview" />
+    {#if createMode && newPoints.trim().split(" ").length >= 2}
+      <DraggablePolygon
+        points={newPoints}
+        onChange={(newPts) => (newPoints = newPts)}
+      />
     {/if}
   </svg>
   {#if hoverField}
     <div class="hover-info">{hoverField.info}</div>
-  {/if}
-  {#if selectedField}
-    <RegionInfo
-      region={selectedField}
-      onClose={closeFieldInfo}
-      onDelete={handleDelete}
-      onUpdate={handleUpdate}
-    />
   {/if}
 </div>
 
@@ -222,6 +295,11 @@
   button {
     padding: 0.5rem 1rem;
     cursor: pointer;
+  }
+  .region-info-fixed {
+    position: fixed;
+    width: 300px;
+    z-index: 1000;
   }
   .map-container {
     position: relative;
